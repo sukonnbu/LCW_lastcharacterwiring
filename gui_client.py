@@ -3,12 +3,12 @@ import socket
 from threading import Thread
 
 
-def on_quit(event=None):
+def on_quit(e=None):
     input_message.set("/bye")
     send()
 
 
-def send(event=None):
+def send(e=None):
     message = input_message.get()
     sock.send(message.encode())
     input_message.set("")
@@ -20,8 +20,11 @@ def send(event=None):
 
 def recv_message():
     while True:
-        message = sock.recv(1024)
-        chat_list.insert(tk.END, message.decode())
+        try:
+            message = sock.recv(1024)
+            chat_list.insert(tk.END, message.decode())
+        except Exception:
+            pass
 
 
 IP = input("접속할 ip를 입력하세요: ")

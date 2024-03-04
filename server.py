@@ -1,4 +1,5 @@
 import socketserver
+from threading import Thread
 
 
 class RequestHandler(socketserver.BaseRequestHandler):
@@ -10,18 +11,23 @@ class RequestHandler(socketserver.BaseRequestHandler):
         while True:
             self.request.send("채팅 닉네임을 입력하세요".encode())
             user_name = self.request.recv(1024).decode()
+            if user_name == "/bye":
+                break
+
             if self.add_user(user_name, self.request, self.client_address):
                 break
 
-        while True:
-            # bytes
-            message = self.request.recv(1024)
-            print("[{}]: {}".format(self.client_address[0], message.decode()))
+        if user_name != "/bye":
+            while True:
+                message = self.request.recv(1024).decode()
 
-            if message.decode() == "/bye":
-                break
+                # 유저들이 전송한 메시지 보기
+                # print("[{}]: {}".format(self.client_address[0], message.decode()))
 
-            self.send_to_users("[{}]: {}".format(user_name, message.decode()))
+                if message == "/bye":
+                    break
+
+                self.send_to_users("[{}]: {}".format(user_name, message))
 
         self.delete_user(user_name)
 
@@ -37,6 +43,10 @@ class RequestHandler(socketserver.BaseRequestHandler):
         return user_name
 
     def delete_user(self, user_name):
+        if user_name == "/bye":
+            print("[{}] 접속 종료".format(self.client_address[0]))
+            return
+
         del self.users[user_name]
         print("[{}] 접속 종료\n현재 참여중: {}명".format(self.client_address[0], len(self.users)))
         self.send_to_users("[{}] 님이 퇴장하셨습니다.".format(user_name))
@@ -46,17 +56,18 @@ class RequestHandler(socketserver.BaseRequestHandler):
         for socket, addr in self.users.values():
             socket.send(message.encode())
 
-    def send_to_all(self, message: str):
-        self.send_to_users(message)
-        print(message)
-
 
 class ChatServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
 
 
 chat = ChatServer(("", 8080), RequestHandler)
-chat.serve_forever()
+server_thread = Thread(target=chat.serve_forever, daemon=True)
+server_thread.start()
+
+while True:
+    if input() == "/shutdown":
+        break
 
 chat.shutdown()
 chat.server_close()
